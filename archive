@@ -1,0 +1,181 @@
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+type Episode struct {
+	Filename string `json:"filename"`
+	// DurationSec убран из Episode, так как он общий для всех эпизодов мультфильма
+}
+
+type Cartoon struct {
+	Title         string    `json:"title"`
+	TotalEpisodes int       `json:"total_episodes"`
+	Episodes      []Episode `json:"episodes"`
+	DurationSec   int       `json:"duration_sec"` // Длительность, общая для всех эпизодов мультфильма
+}
+
+func findCartoonsDir() string {
+	// Сначала пробуем найти рядом с исполняемым файлом
+	exe, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exe)
+		cartoonsDir := filepath.Join(exeDir, "cartoons")
+		if _, err := os.Stat(cartoonsDir); err == nil {
+			fmt.Printf("🔍 Найдена папка 'cartoons' рядом с .exe: %s\n", cartoonsDir)
+			return cartoonsDir
+		}
+	}
+
+	// Если не нашли, ищем в текущей рабочей директории
+	wd, err := os.Getwd()
+	if err == nil {
+		cartoonsDir := filepath.Join(wd, "cartoons")
+		if _, err := os.Stat(cartoonsDir); err == nil {
+			fmt.Printf("🔍 Найдена папка 'cartoons' в текущей директории: %s\n", cartoonsDir)
+			return cartoonsDir
+		}
+		// Пробуем найти в родительской директории (на случай запуска из подпапки)
+		parentDir := filepath.Dir(wd)
+		cartoonsDir = filepath.Join(parentDir, "cartoons")
+		if _, err := os.Stat(cartoonsDir); err == nil {
+			fmt.Printf("🔍 Найдена папка 'cartoons' в родительской директории: %s\n", cartoonsDir)
+			return cartoonsDir
+		}
+	}
+
+	// Если ничего не нашли, возвращаем путь относительно текущей директории
+	defaultPath := filepath.Join(".", "cartoons")
+	fmt.Printf("🔍 Папка 'cartoons' не найдена, будет использован путь: %s\n", defaultPath)
+	return defaultPath
+}
+
+// функция для чтения длительности от пользователя
+func askDuration(title string) int {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("⏱ Введите продолжительность мультфильма '%s' в секундах: ", title)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		duration, err := strconv.Atoi(input)
+		if err != nil || duration <= 0 {
+			fmt.Println("❌ Пожалуйста, введите корректное число больше 0")
+			continue
+		}
+		return duration
+	}
+}
+
+func main() {
+	cartoonsDir := findCartoonsDir()
+
+	fmt.Printf("🔍 Ищу мультфильмы в: %s\n", cartoonsDir)
+
+	// Проверяем существование папки
+	if _, err := os.Stat(cartoonsDir); os.IsNotExist(err) {
+		log.Fatalf("❌ Папка не найдена: %s\nСоздайте папку 'cartoons' в той же директории, что и программа", cartoonsDir)
+	}
+
+	entries, err := os.ReadDir(cartoonsDir)
+	if err != nil {
+		log.Fatal("❌ Ошибка чтения папки cartoons:", err)
+	}
+
+	if len(entries) == 0 {
+		log.Fatal("❌ Папка 'cartoons' пуста. Добавьте папки с мультфильмами")
+	}
+
+	cartoons := make(map[string]Cartoon)
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue // Пропускаем файлы, обрабатываем только папки
+		}
+
+		id := entry.Name() // Имя подпапки становится ID (ключом в JSON)
+		title := strings.Title(strings.ReplaceAll(strings.ReplaceAll(id, "_", " "), "-", " "))
+		fmt.Printf("→ Обрабатываю мультфильм: %s (из папки %s)\n", title, id)
+
+		duration := askDuration(title)
+
+		var files []string
+		dirPath := filepath.Join(cartoonsDir, id)
+		// Ищем видеофайлы только внутри текущей подпапки (а не рекурсивно)
+		dirEntries, err := os.ReadDir(dirPath)
+		if err != nil {
+			log.Printf("⚠ Ошибка чтения папки '%s': %v", id, err)
+			continue
+		}
+
+		for _, fileEntry := range dirEntries {
+			if fileEntry.IsDir() {
+				continue // Пропускаем подпапки внутри подпапки
+			}
+			ext := strings.ToLower(filepath.Ext(fileEntry.Name()))
+			if ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" {
+				files = append(files, filepath.Join(dirPath, fileEntry.Name()))
+			}
+		}
+
+		if len(files) == 0 {
+			fmt.Printf("  ⚠ В папке '%s' не найдено видеофайлов\n", id)
+			continue
+		}
+
+		sort.Strings(files) // Сортируем файлы по имени для предсказуемого порядка
+
+		var episodes []Episode
+		for _, f := range files {
+			filename := filepath.Base(f)
+			episodes = append(episodes, Episode{
+				Filename: filename,
+				// DurationSec: duration, // Убрали из Episode
+			})
+			fmt.Printf("  ✓ %s\n", filename)
+		}
+
+		// Создаем объект Cartoon с общей длительностью
+		cartoons[id] = Cartoon{
+			Title:         title,
+			TotalEpisodes: len(episodes),
+			Episodes:      episodes,
+			DurationSec:   duration, // Добавили DurationSec в Cartoon
+		}
+	}
+
+	if len(cartoons) == 0 {
+		log.Fatal("❌ Не найдено ни одного мультфильма с видеофайлами")
+	}
+
+	// --- ИСПРАВЛЕНО: Сохраняем рядом с .exe ---
+	// Получаем директорию, где находится .exe
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatal("❌ Не удалось получить путь к исполняемому файлу:", err)
+	}
+	exeDir := filepath.Dir(exe)
+
+	// Указываем путь для сохранения рядом с .exe
+	outputPath := filepath.Join(exeDir, "cartoons.json")
+	// --- /ИСПРАВЛЕНО ---
+
+	data, _ := json.MarshalIndent(cartoons, "", "  ")
+	err = os.WriteFile(outputPath, data, 0644)
+	if err != nil {
+		log.Fatal("❌ Не удалось сохранить cartoons.json:", err)
+	}
+
+	// Выводим абсолютный путь для ясности
+	absOutputPath, _ := filepath.Abs(outputPath)
+	fmt.Printf("\n✅ cartoons.json создан: %s\n", absOutputPath)
+	fmt.Printf("📊 Обработано мультфильмов: %d\n", len(cartoons))
+}

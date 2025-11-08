@@ -1,0 +1,272 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
+)
+
+type Episode struct {
+	Filename string `json:"filename"`
+	Title    string `json:"title,omitempty"`    // Название эпизода (из метаданных, если доступно)
+	Duration string `json:"duration,omitempty"` // Продолжительность в формате "HH:MM:SS"
+}
+
+type Cartoon struct {
+	Title         string    `json:"title"`
+	TotalEpisodes int       `json:"total_episodes"`
+	Episodes      []Episode `json:"episodes"`
+	// Убрана общая длительность, т.к. она может отличаться у разных эпизодов
+}
+
+// Преобразование длительности в формат "HH:MM:SS"
+func secondsToHMS(seconds float64) string {
+	duration := time.Duration(seconds * float64(time.Second))
+	hours := int(duration.Hours())
+	minutes := int(duration.Minutes()) % 60
+	secs := int(duration.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, secs)
+}
+
+// Получение метаданных видеофайла с помощью ffprobe
+func getVideoMetadata(filePath string) (duration float64, title string, err error) {
+	cmd := exec.Command("ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Запускаем команду с контекстом
+	cmd = exec.CommandContext(ctx, "ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, "", fmt.Errorf("ошибка выполнения ffprobe: %w", err)
+	}
+
+	// Парсим JSON-вывод
+	var result map[string]interface{}
+	if err := json.Unmarshal(output, &result); err != nil {
+		return 0, "", fmt.Errorf("ошибка парсинга JSON от ffprobe: %w", err)
+	}
+
+	// Извлекаем форматные данные
+	format, ok := result["format"].(map[string]interface{})
+	if !ok {
+		return 0, "", fmt.Errorf("не удалось получить форматные данные")
+	}
+
+	// Получаем длительность
+	durationStr, ok := format["duration"].(string)
+	if ok && durationStr != "" {
+		duration, err = strconv.ParseFloat(durationStr, 64)
+		if err != nil {
+			return 0, "", fmt.Errorf("ошибка парсинга длительности: %w", err)
+		}
+	} else {
+		// Если длительность не найдена, возвращаем 0
+		duration = 0
+	}
+
+	// Попытка получить заголовок из тегов
+	tags, ok := format["tags"].(map[string]interface{})
+	if ok {
+		titleI, ok := tags["title"]
+		if ok && titleI != nil {
+			title, ok = titleI.(string)
+			if !ok {
+				title = ""
+			}
+		}
+	}
+
+	if title == "" {
+		// Если заголовок не найден, используем имя файла без расширения
+		title = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+	}
+
+	return duration, title, nil
+}
+
+func findCartoonsDir() string {
+	// Сначала пробуем найти рядом с исполняемым файлом
+	exe, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exe)
+		cartoonsDir := filepath.Join(exeDir, "cartoons")
+		if _, err := os.Stat(cartoonsDir); err == nil {
+			fmt.Printf("🔍 Найдена папка 'cartoons' рядом с .exe: %s\n", cartoonsDir)
+			return cartoonsDir
+		}
+	}
+
+	// Если не нашли, ищем в текущей рабочей директории
+	wd, err := os.Getwd()
+	if err == nil {
+		cartoonsDir := filepath.Join(wd, "cartoons")
+		if _, err := os.Stat(cartoonsDir); err == nil {
+			fmt.Printf("🔍 Найдена папка 'cartoons' в текущей директории: %s\n", cartoonsDir)
+			return cartoonsDir
+		}
+		// Пробуем найти в родительской директории (на случай запуска из подпапки)
+		parentDir := filepath.Dir(wd)
+		cartoonsDir = filepath.Join(parentDir, "cartoons")
+		if _, err := os.Stat(cartoonsDir); err == nil {
+			fmt.Printf("🔍 Найдена папка 'cartoons' в родительской директории: %s\n", cartoonsDir)
+			return cartoonsDir
+		}
+	}
+
+	// Если ничего не нашли, возвращаем путь относительно текущей директории
+	defaultPath := filepath.Join(".", "cartoons")
+	fmt.Printf("🔍 Папка 'cartoons' не найдена, будет использован путь: %s\n", defaultPath)
+	return defaultPath
+}
+
+func main() {
+	cartoonsDir := findCartoonsDir()
+
+	fmt.Printf("🔍 Ищу мультфильмы в: %s\n", cartoonsDir)
+
+	// Проверяем существование папки
+	if _, err := os.Stat(cartoonsDir); os.IsNotExist(err) {
+		log.Fatalf("❌ Папка не найдена: %s\nСоздайте папку 'cartoons' в той же директории, что и программа", cartoonsDir)
+	}
+
+	entries, err := os.ReadDir(cartoonsDir)
+	if err != nil {
+		log.Fatal("❌ Ошибка чтения папки cartoons:", err)
+	}
+
+	if len(entries) == 0 {
+		log.Fatal("❌ Папка 'cartoons' пуста. Добавьте папки с мультфильмами")
+	}
+
+	cartoons := make(map[string]Cartoon)
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue // Пропускаем файлы, обрабатываем только папки
+		}
+
+		id := entry.Name() // Имя подпапки становится ID (ключом в JSON)
+		title := strings.Title(strings.ReplaceAll(strings.ReplaceAll(id, "_", " "), "-", " "))
+		fmt.Printf("→ Обрабатываю мультфильм: %s (из папки %s)\n", title, id)
+
+		var files []string
+		dirPath := filepath.Join(cartoonsDir, id)
+		// Ищем видеофайлы только внутри текущей подпапки (а не рекурсивно)
+		dirEntries, err := os.ReadDir(dirPath)
+		if err != nil {
+			log.Printf("⚠ Ошибка чтения папки '%s': %v", id, err)
+			continue
+		}
+
+		for _, fileEntry := range dirEntries {
+			if fileEntry.IsDir() {
+				continue // Пропускаем подпапки внутри подпапки
+			}
+			ext := strings.ToLower(filepath.Ext(fileEntry.Name()))
+			if ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".wmv" || ext == ".flv" || ext == ".webm" {
+				files = append(files, filepath.Join(dirPath, fileEntry.Name()))
+			}
+		}
+
+		if len(files) == 0 {
+			fmt.Printf("  ⚠ В папке '%s' не найдено видеофайлов\n", id)
+			continue
+		}
+
+		sort.Strings(files) // Сортируем файлы по имени для предсказуемого порядка
+
+		var episodes []Episode
+
+		// Создаем прогресс-бар
+		p := mpb.New(mpb.WithWidth(60))
+		bar := p.AddBar(int64(len(files)),
+			mpb.PrependDecorators(
+				decor.Counters(0, "%d / %d"),
+				decor.Name("  📽️  "),
+			),
+			mpb.AppendDecorators(
+				decor.Percentage(),
+				// decor.AverageSpeed(decor.UnitKiB, "% .2f"), // Убрано
+				decor.AverageETA(decor.ET_STYLE_GO, decor.WCSyncWidth), // Исправлено: добавлены аргументы
+			),
+		)
+
+		for _, f := range files {
+			filename := filepath.Base(f)
+
+			// Получаем метаданные
+			durationSec, titleFromMeta, err := getVideoMetadata(f)
+			if err != nil {
+				fmt.Printf("\n⚠ Не удалось получить метаданные для файла '%s': %v\n", filename, err)
+				// Продолжаем обработку, используя имя файла как заголовок
+				titleFromMeta = strings.TrimSuffix(filename, filepath.Ext(filename))
+				durationSec = 0 // или можно пропустить эпизод
+			}
+
+			var durationHMS string
+			if durationSec > 0 {
+				durationHMS = secondsToHMS(durationSec)
+			} else {
+				durationHMS = "00:00:00" // или можно оставить пустым
+			}
+
+			episodes = append(episodes, Episode{
+				Filename: filename,
+				Title:    titleFromMeta,
+				Duration: durationHMS,
+			})
+
+			bar.Increment()
+		}
+
+		p.Wait() // Ожидаем завершения прогресс-бара
+
+		// Создаем объект Cartoon
+		cartoons[id] = Cartoon{
+			Title:         title,
+			TotalEpisodes: len(episodes),
+			Episodes:      episodes,
+		}
+	}
+
+	if len(cartoons) == 0 {
+		log.Fatal("❌ Не найдено ни одного мультфильма с видеофайлами")
+	}
+
+	// --- ИСПРАВЛЕНО: Сохраняем рядом с .exe ---
+	// Получаем директорию, где находится .exe
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatal("❌ Не удалось получить путь к исполняемому файлу:", err)
+	}
+	exeDir := filepath.Dir(exe)
+
+	// Указываем путь для сохранения рядом с .exe
+	outputPath := filepath.Join(exeDir, "cartoons.json")
+	// --- /ИСПРАВЛЕНО ---
+
+	data, _ := json.MarshalIndent(cartoons, "", "  ")
+	err = os.WriteFile(outputPath, data, 0644)
+	if err != nil {
+		log.Fatal("❌ Не удалось сохранить cartoons.json:", err)
+	}
+
+	// Выводим абсолютный путь для ясности
+	absOutputPath, _ := filepath.Abs(outputPath)
+	fmt.Printf("\n✅ cartoons.json создан: %s\n", absOutputPath)
+	fmt.Printf("📊 Обработано мультфильмов: %d\n", len(cartoons))
+}

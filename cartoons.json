@@ -1,0 +1,99 @@
+{
+  "batmen": {
+    "title": "Batmen",
+    "total_episodes": 6,
+    "episodes": [
+      {
+        "filename": "The.Batman.S01E01.mkv",
+        "title": "The.Batman.S01E01",
+        "duration": 1271
+      },
+      {
+        "filename": "The.Batman.S01E02.mkv",
+        "title": "The.Batman.S01E02",
+        "duration": 1264
+      },
+      {
+        "filename": "The.Batman.S02E03.mkv",
+        "title": "The.Batman.S02E03",
+        "duration": 1218
+      },
+      {
+        "filename": "The.Batman.S02E04.mkv",
+        "title": "The.Batman.S02E04",
+        "duration": 1226
+      },
+      {
+        "filename": "The.Batman.S04E06.mkv",
+        "title": "The.Batman.S04E06",
+        "duration": 1333
+      },
+      {
+        "filename": "The.Batman.S04E07.mkv",
+        "title": "The.Batman.S04E07",
+        "duration": 1367
+      }
+    ]
+  },
+  "futurama": {
+    "title": "Futurama",
+    "total_episodes": 11,
+    "episodes": [
+      {
+        "filename": "103 - I, Roommate.mkv",
+        "title": "103 - I, Roommate",
+        "duration": 1352
+      },
+      {
+        "filename": "104 - Love's Labours Lost in Space.mkv",
+        "title": "104 - Love's Labours Lost in Space",
+        "duration": 1352
+      },
+      {
+        "filename": "201 - A Flight to Remember.mkv",
+        "title": "201 - A Flight to Remember",
+        "duration": 1353
+      },
+      {
+        "filename": "202 - Mars University.mkv",
+        "title": "202 - Mars University",
+        "duration": 1352
+      },
+      {
+        "filename": "203 - When Aliens Attack.mkv",
+        "title": "203 - When Aliens Attack",
+        "duration": 1353
+      },
+      {
+        "filename": "204 - Fry and the Slurm Factory.mkv",
+        "title": "204 - Fry and the Slurm Factory",
+        "duration": 1352
+      },
+      {
+        "filename": "205 - I Second That Emotion.mkv",
+        "title": "205 - I Second That Emotion",
+        "duration": 1352
+      },
+      {
+        "filename": "207 - A Head in the Polls.mkv",
+        "title": "207 - A Head in the Polls",
+        "duration": 1353
+      },
+      {
+        "filename": "208 - Xmas Story.mkv",
+        "title": "208 - Xmas Story",
+        "duration": 1354
+      },
+      {
+        "filename": "209 - Why Must I Be a Crustacean in Love.mkv",
+        "title": "209 - Why Must I Be a Crustacean in Love",
+        "duration": 1352
+      },
+      {
+        "filename": "210 - Put Your Head on My Shoulders.mkv",
+        "title": "210 - Put Your Head on My Shoulders",
+        "duration": 1353
+      }
+    ]
+  }
+}

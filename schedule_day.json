@@ -1,0 +1,22 @@
+{
+  "period_name": "day",
+  "start_time": "12:00",
+  "end_time": "18:00",
+  "slots": [
+    {
+      "cartoon_id": "futurama",
+      "start": "12:00",
+      "end": "16:07"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "16:07",
+      "end": "16:52"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "16:52",
+      "end": "17:38"
+    }
+  ]
+}
