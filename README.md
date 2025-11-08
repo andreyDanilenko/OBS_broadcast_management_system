@@ -1,6 +1,8 @@
 Cartoon Scheduler
 =================
 
+English version: [README.en.md](README.en.md)
+
 Этот проект автоматизирует трансляцию мультфильмов через OBS Studio. Он сканирует локальную медиатеку, собирает расписание показов и управляет источником `VideoSource` в OBS, выбирая подходящий эпизод согласно расписанию. В комплект входит три консольных утилиты:
 
 - `cartoon-scheduler` — основной сервис с веб-интерфейсом и интеграцией с OBS.
@@ -158,6 +160,82 @@ cd /Users/andrei/Documents/develop
 
 ---
 
+Примеры структуры и данных
+--------------------------
+
+- **Структура папки `cartoons/`**
+
+```text
+cartoons/
+├── batmen/
+│   ├── The.Batman.S01E01.mkv
+│   ├── The.Batman.S01E02.mkv
+│   └── ...
+├── futurama/
+│   ├── 103 - I, Roommate.mkv
+│   ├── 104 - Love's Labours Lost in Space.mkv
+│   └── ...
+└── ...
+```
+
+- **Пример `cartoons.json`, созданного сканером**
+
+```json
+{
+  "batmen": {
+    "title": "Batmen",
+    "total_episodes": 6,
+    "episodes": [
+      {
+        "filename": "The.Batman.S01E01.mkv",
+        "title": "The Batman — S01E01",
+        "duration": 1320
+      },
+      {
+        "filename": "The.Batman.S01E02.mkv",
+        "title": "The Batman — S01E02",
+        "duration": 1344
+      }
+    ]
+  },
+  "futurama": {
+    "title": "Futurama",
+    "total_episodes": 10,
+    "episodes": [
+      {
+        "filename": "103 - I, Roommate.mkv",
+        "title": "103 - I, Roommate",
+        "duration": 1498
+      }
+    ]
+  }
+}
+```
+
+- **Пример расписания `schedule_morning.json`, сгенерированного `parse_schedule`**
+
+```json
+{
+  "period_name": "morning",
+  "start_time": "06:00",
+  "end_time": "12:00",
+  "slots": [
+    {
+      "cartoon_id": "batmen",
+      "start": "06:00",
+      "end": "07:05"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "07:05",
+      "end": "08:35"
+    }
+  ]
+}
+```
+
+---
+
 Полезные команды
 ----------------
 
@@ -171,4 +249,12 @@ cd /Users/andrei/Documents/develop
 --------------
 
 Если при сборке или запуске возникают ошибки (например, `ffprobe` не найден или OBS не отвечает), проверяйте сообщения в консоли — программы печатают понятные подсказки о дальнейших действиях.
+
+---
+
+Контакты разработчика
+---------------------
+
+- Telegram: [@danilllenko](https://t.me/danilllenko)
+- Email: [danilko.a.g@gmail.com](mailto:danilko.a.g@gmail.com)
 
