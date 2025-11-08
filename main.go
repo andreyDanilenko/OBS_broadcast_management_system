@@ -138,9 +138,9 @@ func runMainLogic() {
 	// Бесконечный цикл: каждый проход = один эпизод
 	for {
 		// 🔍 1. Определяем, какой мультфильм должен идти СЕЙЧАС
-		period := getCurrentSchedule()
+		// period := getCurrentSchedule()
 		var currentSchedule Schedule
-		loadJSONFromProgramDir("schedule_"+period+".json", &currentSchedule)
+		loadJSONFromProgramDir("schedule_day.json", &currentSchedule)
 
 		activeSlot := findActiveSlot(&currentSchedule)
 		if activeSlot == nil {

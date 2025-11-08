@@ -3,11 +3,13 @@ Cartoon Scheduler
 
 English version: [README.en.md](README.en.md)
 
-Этот проект автоматизирует трансляцию мультфильмов через OBS Studio. Он сканирует локальную медиатеку, собирает расписание показов и управляет источником `VideoSource` в OBS, выбирая подходящий эпизод согласно расписанию. В комплект входит три консольных утилиты:
+Этот проект автоматизирует трансляцию мультфильмов через OBS Studio. Он сканирует локальную медиатеку, собирает ежедневное расписание показов и управляет источником `VideoSource` в OBS, выбирая подходящий эпизод согласно расписанию. В комплект входит три консольных утилиты:
 
 - `cartoon-scheduler` — основной сервис с веб-интерфейсом и интеграцией с OBS.
 - `cartoon-scanner` — вспомогательная программа из папки `tools/`, формирует `cartoons.json` с описанием мультфильмов.
-- `parse_schedule` — интерактивный генератор расписаний из папки `generate/`, создает `schedule_*.json`.
+- `parse_schedule` — интерактивный генератор расписаний из папки `generate/`, формирует `schedule_day.json`.
+
+Все программы работают с единым файлом расписания `schedule_day.json`, который хранит последовательность показов с 06:00 до 24:00.
 
 ---
 
@@ -26,9 +28,9 @@ English version: [README.en.md](README.en.md)
 
 - `main.go` — веб-сервис с API /start, /scan и /stop, управляет OBS.
 - `tools/generate_meta.go` — исходник утилиты `cartoon-scanner`, извлекает метаданные и строит `cartoons.json`.
-- `generate/main.go` — исходник утилиты `parse_schedule`, интерактивно формирует `schedule_morning.json`, `schedule_day.json`, `schedule_evening.json`.
+- `generate/main.go` — исходник утилиты `parse_schedule`, интерактивно формирует `schedule_day.json`.
 - `cartoons/` — медиатека мультфильмов.
-- `cartoons.json`, `schedule_*.json`, `state.json` — данные, которыми обмениваются программы.
+- `cartoons.json`, `schedule_day.json`, `state.json` — данные, которыми обмениваются программы.
 - `go.mod`, `go.sum` — зависимые пакеты (`goobs` для OBS и `mpb` для прогресс-баров).
 
 ---
@@ -64,7 +66,7 @@ English version: [README.en.md](README.en.md)
 - `ffprobe.exe` (Windows) либо установленные `ffprobe`/`ffmpeg` в `PATH`
 - `cartoons/` (папка с мультфильмами; структура `cartoons/<cartoon_id>/<файлы>` обязательна)
 - `cartoons.json` (создаётся `cartoon-scanner`)
-- `schedule_morning.json`, `schedule_day.json`, `schedule_evening.json` (создаёт `parse_schedule`)
+- `schedule_day.json` (создаёт `parse_schedule`)
 - `state.json` (создаётся автоматически при запуске основного сервиса)
 
 ---
@@ -124,8 +126,8 @@ cd /Users/andrei/Documents/develop
 1. Убедитесь, что рядом с исполняемым файлом лежит актуальный `cartoons.json`.
 2. Запустите `parse_schedule` (на Windows — `schedule_parse.exe`). При старте программа покажет список доступных `cartoon_id`.
 3. В интерактивном режиме вводите пары `cartoon_id количество_серий`. Команда `exit` завершает работу.
-4. Скрипт последовательно заполняет расписания утро (06:00–12:00), день (12:00–18:00) и вечер (18:00–00:00). Продолжайте вводить мультфильмы и количество серий, пока не заполните весь день; программа сообщит, когда достигнут конец доступных слотов.
-5. По завершении автоматически создаются `schedule_morning.json`, `schedule_day.json`, `schedule_evening.json` рядом с бинарником.
+4. Скрипт заполняет единое расписание дня (06:00–24:00). Продолжайте вводить мультфильмы и количество серий, пока не заполните доступное время; программа сообщит, когда достигнут конец суток или больше нет места.
+5. По завершении автоматически создаётся `schedule_day.json` рядом с бинарником.
 
 ### cartoon-scheduler (`main.go`)
 1. Подготовьте OBS Studio:
@@ -135,10 +137,10 @@ cd /Users/andrei/Documents/develop
 2. Убедитесь, что в рабочей папке лежат:
    - бинарник `cartoon-scheduler` (`.exe` для Windows);
    - `cartoon-scanner` (используется кнопкой «Сканировать мультфильмы»);
-   - `cartoons.json`, `schedule_*.json`, `state.json` (создаётся автоматически при первом запуске);
+   - `cartoons.json`, `schedule_day.json`, `state.json` (создаётся автоматически при первом запуске);
    - папка `cartoons/` с контентом.
 3. Запустите `cartoon-scheduler`. В консоли отобразится ссылка `http://localhost:8080`.
-4. Откройте веб-интерфейс: кнопка «Запустить расписание» стартует трансляцию по текущему периоду, «Сканировать мультфильмы» запускает `cartoon-scanner`, «Остановить» завершает цикл.
+4. Откройте веб-интерфейс: кнопка «Запустить расписание» стартует трансляцию по `schedule_day.json`, «Сканировать мультфильмы» запускает `cartoon-scanner`, «Остановить» завершает цикл.
 5. Программа обновляет `state.json` после каждого эпизода, чтобы помнить, что было показано последний раз.
 
 ---
@@ -153,7 +155,7 @@ cd /Users/andrei/Documents/develop
    Выполните `./cartoon-scanner` → получите `cartoons.json`.
 
 3. **Составление расписания**  
-   Запустите `./parse_schedule` → создаются `schedule_morning.json`, `schedule_day.json`, `schedule_evening.json`.
+   Запустите `./parse_schedule` → создаётся `schedule_day.json`.
 
 4. **Запуск трансляции**  
    Запустите `./cartoon-scheduler` и управляйте показом через http://localhost:8080.
@@ -212,13 +214,13 @@ cartoons/
 }
 ```
 
-- **Пример расписания `schedule_morning.json`, сгенерированного `parse_schedule`**
+- **Пример расписания `schedule_day.json`, сгенерированного `parse_schedule`**
 
 ```json
 {
-  "period_name": "morning",
+  "period_name": "day",
   "start_time": "06:00",
-  "end_time": "12:00",
+  "end_time": "24:00",
   "slots": [
     {
       "cartoon_id": "batmen",

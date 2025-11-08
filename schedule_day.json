@@ -1,22 +1,92 @@
 {
-  "period_name": "day",
-  "start_time": "12:00",
-  "end_time": "18:00",
+  "period_name": "full_day",
+  "start_time": "06:00",
+  "end_time": "00:00",
   "slots": [
     {
       "cartoon_id": "futurama",
-      "start": "12:00",
-      "end": "16:07"
+      "start": "06:00",
+      "end": "07:07"
     },
     {
       "cartoon_id": "batmen",
-      "start": "16:07",
-      "end": "16:52"
+      "start": "07:07",
+      "end": "08:10"
     },
     {
       "cartoon_id": "futurama",
-      "start": "16:52",
-      "end": "17:38"
+      "start": "08:10",
+      "end": "09:17"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "09:17",
+      "end": "10:23"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "10:23",
+      "end": "11:30"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "11:30",
+      "end": "12:33"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "12:33",
+      "end": "13:41"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "13:41",
+      "end": "14:46"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "14:46",
+      "end": "15:54"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "15:54",
+      "end": "16:56"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "16:56",
+      "end": "18:04"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "18:04",
+      "end": "19:09"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "19:09",
+      "end": "20:17"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "20:17",
+      "end": "21:19"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "21:19",
+      "end": "22:27"
+    },
+    {
+      "cartoon_id": "batmen",
+      "start": "22:27",
+      "end": "23:32"
+    },
+    {
+      "cartoon_id": "futurama",
+      "start": "23:32",
+      "end": "23:55"
     }
   ]
 }
